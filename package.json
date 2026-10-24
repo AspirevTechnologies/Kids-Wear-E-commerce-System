@@ -4,13 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "opennextjs-cloudflare build",
+    "build": "next build && opennextjs-cloudflare build --skipNextBuild",
     "build:next": "next build",
     "start": "next start",
     "lint": "next lint",
     "share": "node share.js",
     "preview": "opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && wrangler deploy"
+    "deploy": "next build && opennextjs-cloudflare build --skipNextBuild && wrangler deploy"
   },
   "dependencies": {
     "clsx": "^2.1.1",
