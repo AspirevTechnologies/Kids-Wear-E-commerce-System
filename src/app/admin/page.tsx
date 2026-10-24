@@ -78,6 +78,8 @@ export default function AdminDashboardPage() {
   const [productForm, setProductForm] = useState<{
     title: string;
     category: string;
+    gender: 'Girls' | 'Boys' | 'Unisex' | string;
+    ageGroup: 'Baby (0-12M)' | 'Toddler (1-3Y)' | 'Little Kids (3-7Y)' | string;
     fabric: string;
     sellingPrice: number;
     mrp: number;
@@ -93,6 +95,8 @@ export default function AdminDashboardPage() {
   }>({
     title: '',
     category: 'Dresses & Frocks',
+    gender: 'Girls',
+    ageGroup: 'Toddler (1-3Y)',
     fabric: '100% GOTS Organic Cotton',
     sellingPrice: 2990,
     mrp: 3500,
@@ -491,6 +495,8 @@ export default function AdminDashboardPage() {
             productId: editingProduct.id,
             title: productForm.title,
             category: productForm.category,
+            gender: productForm.gender,
+            ageGroup: productForm.ageGroup,
             fabric: productForm.fabric,
             sellingPrice: Number(productForm.sellingPrice),
             mrp: Number(productForm.mrp),
@@ -1323,6 +1329,8 @@ export default function AdminDashboardPage() {
                     setProductForm({
                       title: '',
                       category: 'Dresses & Frocks',
+                      gender: 'Girls',
+                      ageGroup: 'Toddler (1-3Y)',
                       fabric: '100% GOTS Organic Cotton',
                       sellingPrice: 2990,
                       mrp: 3500,
@@ -1400,6 +1408,8 @@ export default function AdminDashboardPage() {
                               setProductForm({
                                 title: product.title,
                                 category: product.category,
+                                gender: product.gender || 'Girls',
+                                ageGroup: product.ageGroup || 'Toddler (1-3Y)',
                                 fabric: product.fabric,
                                 sellingPrice: product.sellingPrice,
                                 mrp: product.mrp,
@@ -2765,6 +2775,41 @@ export default function AdminDashboardPage() {
                       placeholder="e.g. 100% GOTS Organic Cotton"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-[#FF758F]"
                     />
+                  </div>
+                </div>
+
+                {/* Target Gender & Age Group Alignment */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      Target Department / Gender *
+                    </label>
+                    <select
+                      value={productForm.gender}
+                      onChange={(e) => setProductForm({ ...productForm, gender: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-800 focus:ring-2 focus:ring-[#FF758F]"
+                    >
+                      <option value="Girls">Girls Collection (Frocks, Dresses, Skirts)</option>
+                      <option value="Boys">Boys Collection (Shirts, Tees, Shorts, Blazers)</option>
+                      <option value="Unisex">Unisex / All Kids (Basics, Neutral Rompers)</option>
+                    </select>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">Controls Navbar Shop &gt; Girls/Boys collection filters</span>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      Age Group / Stage *
+                    </label>
+                    <select
+                      value={productForm.ageGroup}
+                      onChange={(e) => setProductForm({ ...productForm, ageGroup: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-800 focus:ring-2 focus:ring-[#FF758F]"
+                    >
+                      <option value="Baby (0-12M)">Baby &amp; Infants (0-12 Months)</option>
+                      <option value="Toddler (1-3Y)">Toddlers (1-3 Years)</option>
+                      <option value="Little Kids (3-7Y)">Little Kids (3-7 Years)</option>
+                    </select>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">Controls Navbar Shop &gt; Baby &amp; Infants filter</span>
                   </div>
                 </div>
               </div>

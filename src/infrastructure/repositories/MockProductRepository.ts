@@ -465,8 +465,27 @@ export class MockProductRepository implements IProductRepository {
       }
 
       if (options.isNewArrival && !product.isNewArrival) return false;
-      if (options.ageGroup && product.ageGroup !== options.ageGroup) return false;
-      if (options.gender && product.gender !== options.gender && product.gender !== Gender.UNISEX) return false;
+
+      if (options.ageGroup) {
+        const optionAge = String(options.ageGroup).toLowerCase();
+        const productAge = String(product.ageGroup || '').toLowerCase();
+        const matchesExact = productAge === optionAge;
+        const matchesBaby =
+          optionAge.includes('baby') &&
+          (productAge.includes('baby') || productAge.includes('infant') || product.category.toLowerCase().includes('romper'));
+        const matchesToddler = optionAge.includes('toddler') && productAge.includes('toddler');
+        const matchesKids =
+          (optionAge.includes('little') || optionAge.includes('kid')) &&
+          (productAge.includes('little') || productAge.includes('kid'));
+        if (!matchesExact && !matchesBaby && !matchesToddler && !matchesKids) return false;
+      }
+
+      if (options.gender) {
+        const optionGender = String(options.gender).toLowerCase();
+        const productGender = String(product.gender || '').toLowerCase();
+        if (productGender !== 'unisex' && !productGender.includes(optionGender)) return false;
+      }
+
       if (options.maxPrice && product.sellingPrice > options.maxPrice) return false;
       if (options.codOnly && !product.isCodAvailable) return false;
 

@@ -155,6 +155,8 @@ export async function PATCH(req: NextRequest) {
     if (updates.fabric) cleanUpdates.fabric = updates.fabric;
     if (updates.description) cleanUpdates.description = updates.description;
     if (updates.category) cleanUpdates.category = updates.category;
+    if (updates.gender) cleanUpdates.gender = updates.gender;
+    if (updates.ageGroup) cleanUpdates.ageGroup = updates.ageGroup;
     if (updates.images && Array.isArray(updates.images)) cleanUpdates.images = updates.images;
     if (updates.variants && Array.isArray(updates.variants)) {
       cleanUpdates.variants = updates.variants;

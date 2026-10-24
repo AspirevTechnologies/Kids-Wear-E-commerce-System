@@ -133,7 +133,7 @@ export const Navbar: React.FC = () => {
                 <Link href="/products?gender=Boys" className="block px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-[#FFF0F3] hover:text-[#FF758F] rounded-xl transition-colors">
                   Boys Collection (2-8Y)
                 </Link>
-                <Link href="/products?category=Rompers+%26+Onesies" className="block px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-[#FFF0F3] hover:text-[#FF758F] rounded-xl transition-colors">
+                <Link href="/products?ageGroup=Baby" className="block px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-[#FFF0F3] hover:text-[#FF758F] rounded-xl transition-colors">
                   Baby & Infants (0-12M)
                 </Link>
                 <Link href="/products" className="block px-3 py-2 text-xs font-bold text-[#FF758F] hover:bg-[#FFF0F3] rounded-xl transition-colors border-t border-slate-100 mt-1">
