@@ -50,12 +50,14 @@ export default function CustomerDashboardPage() {
   const [slipModalOrder, setSlipModalOrder] = useState<Order | null>(null);
   const [slipInput, setSlipInput] = useState('');
   const [slipImage, setSlipImage] = useState<string | null>(null);
+  const [selectedSlipFile, setSelectedSlipFile] = useState<File | null>(null);
   const [isSubmittingSlip, setIsSubmittingSlip] = useState(false);
   const [slipSuccessMessage, setSlipSuccessMessage] = useState('');
 
   const handleSlipImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      setSelectedSlipFile(file);
       const reader = new FileReader();
       reader.onload = () => {
         setSlipImage(reader.result as string);
@@ -175,11 +177,35 @@ export default function CustomerDashboardPage() {
 
   const handleSlipSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = slipImage || slipInput.trim();
-    if (!slipModalOrder || !payload) return;
+    if (!slipModalOrder) return;
 
     setIsSubmittingSlip(true);
     try {
+      let payload = slipInput.trim();
+
+      // Upload file directly to Supabase private 'receipts' bucket
+      if (selectedSlipFile) {
+        const formData = new FormData();
+        formData.append('file', selectedSlipFile);
+        formData.append('bucket', 'receipts');
+
+        const uploadRes = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        const uploadData = await uploadRes.json();
+        if (uploadData.success && uploadData.url) {
+          payload = uploadData.url;
+        }
+      } else if (slipImage && !payload) {
+        payload = slipImage;
+      }
+
+      if (!payload) {
+        setIsSubmittingSlip(false);
+        return;
+      }
+
       const res = await fetch(`/api/orders/${slipModalOrder.id}/receipt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -189,12 +215,13 @@ export default function CustomerDashboardPage() {
 
       if (data.success && data.order) {
         setOrders((prev) => prev.map((o) => (o.id === data.order.id ? data.order : o)));
-        setSlipSuccessMessage('Payment slip uploaded successfully! Our team will verify and dispatch.');
+        setSlipSuccessMessage('Payment slip uploaded to Supabase successfully! Our team will verify and dispatch.');
         setTimeout(() => {
           setSlipModalOrder(null);
           setSlipSuccessMessage('');
           setSlipInput('');
           setSlipImage(null);
+          setSelectedSlipFile(null);
         }, 3000);
       }
     } catch {

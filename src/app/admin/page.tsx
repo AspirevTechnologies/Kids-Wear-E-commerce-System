@@ -397,21 +397,42 @@ export default function AdminDashboardPage() {
     }));
   };
 
-  const handleMultipleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMultipleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
-      files.forEach((file) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (typeof reader.result === 'string') {
+      setIsUploadingImage(true);
+      setProductFeedback('Uploading images to Supabase Storage...');
+      try {
+        for (const file of files) {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('bucket', 'products');
+
+          const res = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+          });
+          const data = await res.json();
+          if (data.success && data.url) {
             setProductForm((prev) => ({
               ...prev,
-              images: [...prev.images.filter((img) => img !== '/images/products/floral-dress.jpg' || prev.images.length > 1), reader.result as string],
+              images: [
+                ...prev.images.filter((img) => img !== '/images/products/floral-dress.jpg' || prev.images.length > 1),
+                data.url,
+              ],
             }));
+          } else {
+            console.error('Upload failed for file:', file.name, data.message);
           }
-        };
-        reader.readAsDataURL(file);
-      });
+        }
+        setProductFeedback('Images uploaded successfully to Supabase Storage!');
+        setTimeout(() => setProductFeedback(''), 3000);
+      } catch (err: any) {
+        console.error('Upload error:', err);
+        setProductFeedback('Failed to upload image. Please try again.');
+      } finally {
+        setIsUploadingImage(false);
+      }
     }
   };
 
@@ -2837,13 +2858,14 @@ export default function AdminDashboardPage() {
 
                 {/* Upload & Add Bar */}
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <label className="cursor-pointer px-4 py-2.5 bg-slate-900 hover:bg-[#FF758F] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow-xs">
-                    <UploadCloud className="w-4 h-4" />
-                    <span>+ Upload Photos from Device</span>
+                  <label className={`cursor-pointer px-4 py-2.5 ${isUploadingImage ? 'bg-rose-600' : 'bg-slate-900 hover:bg-[#FF758F]'} text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow-xs`}>
+                    <UploadCloud className={`w-4 h-4 ${isUploadingImage ? 'animate-bounce' : ''}`} />
+                    <span>{isUploadingImage ? 'Uploading to Supabase Storage...' : '+ Upload Photos from Device'}</span>
                     <input
                       type="file"
                       multiple
                       accept="image/*"
+                      disabled={isUploadingImage}
                       onChange={handleMultipleImageUpload}
                       className="hidden"
                     />

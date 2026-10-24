@@ -29,6 +29,7 @@ export const OrderSuccessClient: React.FC<{ order: Order }> = ({ order }) => {
   const [copiedRef, setCopiedRef] = useState(false);
   const [transferRefInput, setTransferRefInput] = useState(order.slipUrl || '');
   const [slipImage, setSlipImage] = useState<string | null>(order.slipUrl || null);
+  const [selectedSlipFile, setSelectedSlipFile] = useState<File | null>(null);
   const [isUpdatingSlip, setIsUpdatingSlip] = useState(false);
   const [slipSubmitted, setSlipSubmitted] = useState(Boolean(order.slipUrl));
   const [storeSettings, setStoreSettings] = useState<any | null>(null);
@@ -65,6 +66,7 @@ export const OrderSuccessClient: React.FC<{ order: Order }> = ({ order }) => {
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      setSelectedSlipFile(file);
       const reader = new FileReader();
       reader.onload = () => {
         setSlipImage(reader.result as string);
@@ -75,11 +77,33 @@ export const OrderSuccessClient: React.FC<{ order: Order }> = ({ order }) => {
 
   const handleSlipSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = slipImage || transferRefInput.trim();
-    if (!payload) return;
-
     setIsUpdatingSlip(true);
     try {
+      let payload = transferRefInput.trim();
+
+      // If customer selected an image file, upload it securely to Supabase Storage 'receipts' bucket
+      if (selectedSlipFile) {
+        const formData = new FormData();
+        formData.append('file', selectedSlipFile);
+        formData.append('bucket', 'receipts');
+
+        const uploadRes = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        const uploadData = await uploadRes.json();
+        if (uploadData.success && uploadData.url) {
+          payload = uploadData.url;
+        }
+      } else if (slipImage && !payload) {
+        payload = slipImage;
+      }
+
+      if (!payload) {
+        setIsUpdatingSlip(false);
+        return;
+      }
+
       const res = await fetch(`/api/orders/${order.id}/receipt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
