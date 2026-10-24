@@ -156,13 +156,10 @@ export default function AdminDashboardPage() {
     'Accessories & Shoes',
   ];
 
-  const availableCategories = Array.from(
-    new Set([
-      ...defaultCategoryList,
-      ...(settingsForm?.categories || []),
-      ...products.map((p) => p.category).filter(Boolean),
-    ])
-  );
+  const availableCategories =
+    settingsForm?.categories && settingsForm.categories.length > 0
+      ? settingsForm.categories
+      : defaultCategoryList;
 
   // Check existing session
   useEffect(() => {
@@ -610,7 +607,18 @@ export default function AdminDashboardPage() {
     const trimmed = newCategoryName.trim();
     if (!trimmed) return;
 
-    const updatedCategories = Array.from(new Set([...availableCategories, trimmed]));
+    const currentList =
+      settingsForm?.categories && settingsForm.categories.length > 0
+        ? settingsForm.categories
+        : defaultCategoryList;
+
+    if (currentList.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
+      setNewCategoryName('');
+      setIsAddingCategory(false);
+      return;
+    }
+
+    const updatedCategories = [...currentList, trimmed];
     setProductForm((prev) => ({ ...prev, category: trimmed }));
     if (settingsForm) {
       setSettingsForm({ ...settingsForm, categories: updatedCategories });
@@ -626,7 +634,18 @@ export default function AdminDashboardPage() {
 
   const handleDeleteCategory = async (categoryToDelete: string) => {
     if (!settingsForm) return;
-    const updated = (settingsForm.categories || availableCategories).filter((c) => c !== categoryToDelete);
+    const count = products.filter((p) => p.category === categoryToDelete).length;
+    if (count > 0) {
+      const proceed = window.confirm(
+        `There are currently ${count} product(s) assigned to "${categoryToDelete}". Removing this category will remove it from active store categories and storefront menus. Do you want to proceed?`
+      );
+      if (!proceed) return;
+    }
+    const currentList =
+      settingsForm.categories && settingsForm.categories.length > 0
+        ? settingsForm.categories
+        : defaultCategoryList;
+    const updated = currentList.filter((c) => c !== categoryToDelete);
     setSettingsForm({ ...settingsForm, categories: updated });
     fetch('/api/admin/settings', {
       method: 'PATCH',
@@ -1728,16 +1747,15 @@ export default function AdminDashboardPage() {
                           <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-extrabold flex items-center justify-center">
                             {count}
                           </span>
-                          {!defaultCategoryList.includes(cat) && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteCategory(cat)}
-                              className="text-slate-400 hover:text-red-600 p-0.5 ml-0.5"
-                              title="Delete Category"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCategory(cat)}
+                            className="text-slate-400 hover:text-rose-600 p-0.5 ml-0.5 transition-colors rounded hover:bg-rose-50"
+                            title={`Delete Category "${cat}"`}
+                            aria-label={`Delete category ${cat}`}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       );
                     })}

@@ -37,13 +37,9 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   
   const allStoreProducts = await repository.getAllProducts();
   const settings = await new SettingsRepository().getSettings();
-  const categories = Array.from(
-    new Set([
-      ...Object.values(ClothingCategory),
-      ...(settings.categories || []),
-      ...allStoreProducts.map((p) => p.category).filter(Boolean)
-    ])
-  );
+  const categories = settings.categories && settings.categories.length > 0
+    ? settings.categories
+    : Array.from(new Set([...Object.values(ClothingCategory)]));
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-8">

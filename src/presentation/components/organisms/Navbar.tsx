@@ -26,6 +26,34 @@ export const Navbar: React.FC = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isScrolled, setIsScrolled] = useState(false);
+  const [categories, setCategories] = useState<string[]>([
+    'Dresses & Frocks',
+    'Rompers & Onesies',
+    'T-Shirts & Tops',
+    'Pants & Shorts',
+    'Sleepwear & Pyjamas',
+    'Festive & Ethnic Wear',
+  ]);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch('/api/settings')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (
+          isMounted &&
+          data?.settings?.categories &&
+          Array.isArray(data.settings.categories) &&
+          data.settings.categories.length > 0
+        ) {
+          setCategories(data.settings.categories);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Isolate Seller Admin Portal from customer storefront navigation
   const isAdmin = pathname?.startsWith('/admin');
@@ -123,20 +151,26 @@ export const Navbar: React.FC = () => {
               NEW ARRIVALS
             </Link>
 
-            {/* Collections Dropdown */}
+            {/* Dynamic Categories Dropdown */}
             <div className="relative group cursor-pointer py-1 flex items-center gap-1 hover:text-[#FF758F] transition-colors">
-              <span>COLLECTIONS</span>
+              <span>CATEGORIES</span>
               <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-[#FF758F] transition-transform group-hover:rotate-180" aria-hidden="true" />
 
-              <div className="absolute top-full left-0 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 p-2.5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 -translate-y-1 group-hover:translate-y-0 z-50">
-                <Link href="/products?category=Festive+%26+Ethnic+Wear" className="block px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-[#FFF0F3] hover:text-[#FF758F] rounded-xl transition-colors">
-                  Festive & Party Frocks
-                </Link>
-                <Link href="/products?category=T-Shirts+%26+Tops" className="block px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-[#FFF0F3] hover:text-[#FF758F] rounded-xl transition-colors">
-                  Organic Daily Essentials
-                </Link>
-                <Link href="/products?category=Nightwear" className="block px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-[#FFF0F3] hover:text-[#FF758F] rounded-xl transition-colors">
-                  Bamboo Soft Sleepwear
+              <div className="absolute top-full left-0 w-60 bg-white rounded-2xl shadow-xl border border-slate-100 p-2.5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 -translate-y-1 group-hover:translate-y-0 z-50 max-h-80 overflow-y-auto">
+                {categories.map((cat) => (
+                  <Link
+                    key={cat}
+                    href={`/products?category=${encodeURIComponent(cat)}`}
+                    className="block px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-[#FFF0F3] hover:text-[#FF758F] rounded-xl transition-colors"
+                  >
+                    {cat}
+                  </Link>
+                ))}
+                <Link
+                  href="/products"
+                  className="block px-3 py-2 text-xs font-bold text-[#FF758F] hover:bg-[#FFF0F3] rounded-xl transition-colors border-t border-slate-100 mt-1"
+                >
+                  View All Outfits →
                 </Link>
               </div>
             </div>
@@ -312,6 +346,23 @@ export const Navbar: React.FC = () => {
                     <span>SPECIAL OFFERS & SALE</span>
                     <span className="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-bold">30% OFF</span>
                   </Link>
+
+                  <div className="pt-2 border-t border-slate-100 space-y-1">
+                    <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 block px-3.5 pb-1">
+                      Browse by Category
+                    </span>
+                    {categories.map((cat) => (
+                      <Link
+                        key={cat}
+                        href={`/products?category=${encodeURIComponent(cat)}`}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="px-3.5 py-1.5 rounded-xl hover:bg-slate-50 flex items-center justify-between text-xs text-slate-600 font-semibold"
+                      >
+                        <span>{cat}</span>
+                        <span className="text-[10px] text-slate-400">→</span>
+                      </Link>
+                    ))}
+                  </div>
                 </nav>
               </div>
 
