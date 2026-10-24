@@ -1,6 +1,8 @@
 # Node & Next.js
 node_modules/
 .next/
+.open-next/
+.wrangler/
 out/
 build/
 dist/
