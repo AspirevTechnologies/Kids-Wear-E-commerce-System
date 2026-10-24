@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceSupabase } from '@/infrastructure/database/supabaseClient';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
+    const isConfigured = Boolean(
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    );
+
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     const bucket = (formData.get('bucket') as string) || 'products';
@@ -11,6 +17,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { success: false, message: 'No file provided in the request.' },
         { status: 400 }
+      );
+    }
+
+    if (!isConfigured) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            'Cloud storage is not configured yet. Please configure SUPABASE_SERVICE_ROLE_KEY in your environment or Cloudflare dashboard.',
+        },
+        { status: 503 }
       );
     }
 
