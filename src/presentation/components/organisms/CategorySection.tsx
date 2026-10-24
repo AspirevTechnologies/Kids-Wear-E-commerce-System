@@ -3,16 +3,23 @@
 import React, { useEffect, useState } from 'react';
 import { CategoryAvatar } from '@/presentation/components/molecules/CategoryAvatar';
 
-const DEFAULT_CATEGORIES = [
-  'Dresses & Frocks',
-  'Rompers & Onesies',
-  'T-Shirts & Tops',
-  'Pants & Shorts',
-  'Sleepwear & Pyjamas',
-  'Festive & Ethnic Wear',
+interface CategoryItem {
+  id?: string;
+  name: string;
+  image: string;
+}
+
+const DEFAULT_CATEGORY_ITEMS: CategoryItem[] = [
+  { id: 'cat-dresses', name: 'Dresses & Frocks', image: '/images/categories/girls.jpg' },
+  { id: 'cat-rompers', name: 'Rompers & Onesies', image: '/images/categories/baby.jpg' },
+  { id: 'cat-tshirts', name: 'T-Shirts & Tops', image: '/images/categories/boys.jpg' },
+  { id: 'cat-pants', name: 'Pants & Shorts', image: 'https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?w=600&auto=format&fit=crop&q=80' },
+  { id: 'cat-sleepwear', name: 'Sleepwear & Pyjamas', image: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=600&auto=format&fit=crop&q=80' },
+  { id: 'cat-ethnic', name: 'Festive & Ethnic Wear', image: '/images/categories/outfits.jpg' },
+  { id: 'cat-accessories', name: 'Accessories & Shoes', image: '/images/categories/accessories.jpg' },
 ];
 
-const getCategoryImage = (categoryName: string): string => {
+export const getCategoryImage = (categoryName: string): string => {
   const lower = categoryName.toLowerCase();
   if (lower.includes('dress') || lower.includes('frock') || lower.includes('girl')) {
     return '/images/categories/girls.jpg';
@@ -42,20 +49,26 @@ const getCategoryImage = (categoryName: string): string => {
 };
 
 export const CategorySection: React.FC = () => {
-  const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
+  const [categories, setCategories] = useState<CategoryItem[]>(DEFAULT_CATEGORY_ITEMS);
 
   useEffect(() => {
     let isMounted = true;
     fetch('/api/settings')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (isMounted && data?.settings?.categories && Array.isArray(data.settings.categories) && data.settings.categories.length > 0) {
-          setCategories(data.settings.categories);
+        if (!isMounted) return;
+        if (data?.settings?.categoryDetails && Array.isArray(data.settings.categoryDetails) && data.settings.categoryDetails.length > 0) {
+          setCategories(data.settings.categoryDetails);
+        } else if (data?.settings?.categories && Array.isArray(data.settings.categories) && data.settings.categories.length > 0) {
+          setCategories(
+            data.settings.categories.map((name: string) => ({
+              name,
+              image: getCategoryImage(name),
+            }))
+          );
         }
       })
-      .catch(() => {
-        // Fallback to default categories silently
-      });
+      .catch(() => {});
 
     return () => {
       isMounted = false;
@@ -78,11 +91,11 @@ export const CategorySection: React.FC = () => {
       {/* Dynamic Category Circular Avatars - Adaptive layout based on admin categories */}
       <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-6 lg:gap-8">
         {categories.map((cat) => (
-          <div key={cat} className="w-[100px] sm:w-[120px] md:w-[130px] flex justify-center">
+          <div key={cat.name} className="w-[100px] sm:w-[120px] md:w-[130px] flex justify-center">
             <CategoryAvatar
-              title={cat}
-              href={`/products?category=${encodeURIComponent(cat)}`}
-              image={getCategoryImage(cat)}
+              title={cat.name}
+              href={`/products?category=${encodeURIComponent(cat.name)}`}
+              image={cat.image || getCategoryImage(cat.name)}
             />
           </div>
         ))}

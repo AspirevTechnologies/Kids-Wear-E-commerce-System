@@ -26,10 +26,17 @@ export interface StoreContactSettings {
   workingHours: string;
 }
 
+export interface StoreCategoryItem {
+  id: string;
+  name: string;
+  image: string;
+}
+
 export interface StoreSettings {
   bankAccounts: BankAccountDetails[];
   delivery: StoreDeliverySettings;
   contact: StoreContactSettings;
-  categories?: string[]; // Custom store product categories
+  categories?: string[]; // Custom store product categories (names)
+  categoryDetails?: StoreCategoryItem[]; // Custom store categories with images
   updatedAt: string;
 }

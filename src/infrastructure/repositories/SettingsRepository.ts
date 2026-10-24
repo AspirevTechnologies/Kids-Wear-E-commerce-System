@@ -1,10 +1,10 @@
 import { DatabaseClient } from '../database/DatabaseClient';
-import { StoreSettings } from '@/core/entities/StoreSettings';
+import { StoreSettings, StoreCategoryItem } from '@/core/entities/StoreSettings';
 import { SRI_LANKAN_BANK_ACCOUNTS } from '@/core/constants/BankAccounts';
 
 /**
  * SettingsRepository (SADP Repository Pattern)
- * Persists store configurations (Bank Accounts, Delivery Fees, Contact Info)
+ * Persists store configurations (Bank Accounts, Delivery Fees, Contact Info, Categories with Images)
  * in the centralized DatabaseClient singleton.
  */
 const DEFAULT_DISTRICT_RATES = [
@@ -15,15 +15,17 @@ const DEFAULT_DISTRICT_RATES = [
   { id: 'rate-outstation', name: 'Outstation Islandwide (All Other Districts)', districts: ['*'], fee: 500, estimatedDays: '2-3 Days' },
 ];
 
-const DEFAULT_CATEGORIES = [
-  'Dresses & Frocks',
-  'Rompers & Onesies',
-  'T-Shirts & Tops',
-  'Pants & Shorts',
-  'Sleepwear & Pyjamas',
-  'Festive & Ethnic Wear',
-  'Accessories & Shoes',
+export const DEFAULT_CATEGORY_ITEMS: StoreCategoryItem[] = [
+  { id: 'cat-dresses', name: 'Dresses & Frocks', image: '/images/categories/girls.jpg' },
+  { id: 'cat-rompers', name: 'Rompers & Onesies', image: '/images/categories/baby.jpg' },
+  { id: 'cat-tshirts', name: 'T-Shirts & Tops', image: '/images/categories/boys.jpg' },
+  { id: 'cat-pants', name: 'Pants & Shorts', image: 'https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?w=600&auto=format&fit=crop&q=80' },
+  { id: 'cat-sleepwear', name: 'Sleepwear & Pyjamas', image: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=600&auto=format&fit=crop&q=80' },
+  { id: 'cat-ethnic', name: 'Festive & Ethnic Wear', image: '/images/categories/outfits.jpg' },
+  { id: 'cat-accessories', name: 'Accessories & Shoes', image: '/images/categories/accessories.jpg' },
 ];
+
+const DEFAULT_CATEGORIES = DEFAULT_CATEGORY_ITEMS.map((c) => c.name);
 
 export class SettingsRepository {
   private static readonly STORAGE_KEY = 'store_settings';
@@ -51,6 +53,7 @@ export class SettingsRepository {
           workingHours: 'Mon - Sat: 9:00 AM - 8:00 PM | Sun: 10:00 AM - 6:00 PM',
         },
         categories: [...DEFAULT_CATEGORIES],
+        categoryDetails: [...DEFAULT_CATEGORY_ITEMS],
         updatedAt: new Date().toISOString(),
       };
       this.db.set(SettingsRepository.STORAGE_KEY, defaultSettings);
@@ -79,6 +82,7 @@ export class SettingsRepository {
           workingHours: 'Mon - Sat: 9:00 AM - 8:00 PM | Sun: 10:00 AM - 6:00 PM',
         },
         categories: stored?.categories || [...DEFAULT_CATEGORIES],
+        categoryDetails: stored?.categoryDetails || [...DEFAULT_CATEGORY_ITEMS],
         updatedAt: new Date().toISOString(),
       };
       if (!defaultSettings.delivery.districtRates || defaultSettings.delivery.districtRates.length === 0) {
@@ -91,8 +95,12 @@ export class SettingsRepository {
       stored.delivery.districtRates = [...DEFAULT_DISTRICT_RATES];
       this.db.set(SettingsRepository.STORAGE_KEY, stored);
     }
-    if (!stored.categories || stored.categories.length === 0) {
-      stored.categories = [...DEFAULT_CATEGORIES];
+    if (!stored.categoryDetails || stored.categoryDetails.length === 0) {
+      stored.categoryDetails = [...DEFAULT_CATEGORY_ITEMS];
+      stored.categories = stored.categoryDetails.map((c) => c.name);
+      this.db.set(SettingsRepository.STORAGE_KEY, stored);
+    } else if (!stored.categories || stored.categories.length === 0) {
+      stored.categories = stored.categoryDetails.map((c) => c.name);
       this.db.set(SettingsRepository.STORAGE_KEY, stored);
     }
     return stored;
@@ -100,6 +108,27 @@ export class SettingsRepository {
 
   public async updateSettings(updates: Partial<StoreSettings>): Promise<StoreSettings> {
     const current = await this.getSettings();
+
+    let finalCategoryDetails = updates.categoryDetails ?? current.categoryDetails ?? [...DEFAULT_CATEGORY_ITEMS];
+    let finalCategories = updates.categories ?? current.categories ?? DEFAULT_CATEGORIES;
+
+    if (updates.categoryDetails) {
+      finalCategoryDetails = updates.categoryDetails;
+      finalCategories = updates.categoryDetails.map((c) => c.name);
+    } else if (updates.categories) {
+      finalCategories = updates.categories;
+      const existingMap = new Map((current.categoryDetails || []).map((c) => [c.name.toLowerCase(), c]));
+      finalCategoryDetails = updates.categories.map((name) => {
+        const found = existingMap.get(name.toLowerCase());
+        if (found) return found;
+        return {
+          id: `cat-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          name,
+          image: '/images/categories/outfits.jpg',
+        };
+      });
+    }
+
     const updated: StoreSettings = {
       ...current,
       bankAccounts: updates.bankAccounts && updates.bankAccounts.length > 0 ? updates.bankAccounts : current.bankAccounts,
@@ -111,7 +140,8 @@ export class SettingsRepository {
         ...current.contact,
         ...(updates.contact || {}),
       },
-      categories: updates.categories && updates.categories.length > 0 ? updates.categories : current.categories,
+      categories: finalCategories,
+      categoryDetails: finalCategoryDetails,
       updatedAt: new Date().toISOString(),
     };
     this.db.set(SettingsRepository.STORAGE_KEY, updated);

@@ -21,7 +21,7 @@ export async function GET() {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const { bankAccounts, delivery, contact, categories } = body;
+    const { bankAccounts, delivery, contact, categories, categoryDetails } = body;
 
     const settingsRepo = new SettingsRepository();
     const updated = await settingsRepo.updateSettings({
@@ -29,6 +29,7 @@ export async function PATCH(req: NextRequest) {
       delivery,
       contact,
       categories,
+      categoryDetails,
     });
 
     return NextResponse.json({

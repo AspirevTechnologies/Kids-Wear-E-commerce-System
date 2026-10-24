@@ -46,8 +46,9 @@ import {
 } from 'lucide-react';
 import { formatLKR } from '@/shared/utils/currency';
 import { OrderStatus, PaymentMethod, PaymentStatus, BankAccountDetails } from '@/shared/types/common';
-import { StoreSettings, DistrictDeliveryRate } from '@/core/entities/StoreSettings';
+import { StoreSettings, DistrictDeliveryRate, StoreCategoryItem } from '@/core/entities/StoreSettings';
 import { SRI_LANKA_DISTRICTS } from '@/core/constants/SriLankaDistricts';
+import { getCategoryImage } from '@/presentation/components/organisms/CategorySection';
 
 export default function AdminDashboardPage() {
   // Authentication gate
@@ -111,6 +112,7 @@ export default function AdminDashboardPage() {
   });
   const [newProductImageUrl, setNewProductImageUrl] = useState<string>('');
   const [productFeedback, setProductFeedback] = useState<string>('');
+  const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
 
   // Settings State & Feedback
   const [settingsForm, setSettingsForm] = useState<StoreSettings | null>(null);
@@ -145,6 +147,7 @@ export default function AdminDashboardPage() {
   // Custom Categories Management State
   const [isAddingCategory, setIsAddingCategory] = useState<boolean>(false);
   const [newCategoryName, setNewCategoryName] = useState<string>('');
+  const [newCategoryImage, setNewCategoryImage] = useState<string>('');
 
   const defaultCategoryList = [
     'Dresses & Frocks',
@@ -156,10 +159,21 @@ export default function AdminDashboardPage() {
     'Accessories & Shoes',
   ];
 
+  const categoryItemList: StoreCategoryItem[] =
+    settingsForm?.categoryDetails && settingsForm.categoryDetails.length > 0
+      ? settingsForm.categoryDetails
+      : (settingsForm?.categories || defaultCategoryList).map((name) => ({
+          id: `cat-${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+          name,
+          image: getCategoryImage(name),
+        }));
+
   const availableCategories =
-    settingsForm?.categories && settingsForm.categories.length > 0
-      ? settingsForm.categories
-      : defaultCategoryList;
+    categoryItemList.length > 0
+      ? categoryItemList.map((c) => c.name)
+      : (settingsForm?.categories && settingsForm.categories.length > 0
+          ? settingsForm.categories
+          : defaultCategoryList);
 
   // Check existing session
   useEffect(() => {
@@ -607,28 +621,34 @@ export default function AdminDashboardPage() {
     const trimmed = newCategoryName.trim();
     if (!trimmed) return;
 
-    const currentList =
-      settingsForm?.categories && settingsForm.categories.length > 0
-        ? settingsForm.categories
-        : defaultCategoryList;
-
-    if (currentList.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
+    if (categoryItemList.some((c) => c.name.toLowerCase() === trimmed.toLowerCase())) {
       setNewCategoryName('');
+      setNewCategoryImage('');
       setIsAddingCategory(false);
       return;
     }
 
-    const updatedCategories = [...currentList, trimmed];
+    const image = newCategoryImage.trim() || getCategoryImage(trimmed);
+    const newCatItem: StoreCategoryItem = {
+      id: `cat-${Date.now()}`,
+      name: trimmed,
+      image,
+    };
+
+    const updatedDetails = [...categoryItemList, newCatItem];
+    const updatedCategories = updatedDetails.map((c) => c.name);
+
     setProductForm((prev) => ({ ...prev, category: trimmed }));
     if (settingsForm) {
-      setSettingsForm({ ...settingsForm, categories: updatedCategories });
+      setSettingsForm({ ...settingsForm, categories: updatedCategories, categoryDetails: updatedDetails });
       fetch('/api/admin/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ categories: updatedCategories }),
+        body: JSON.stringify({ categories: updatedCategories, categoryDetails: updatedDetails }),
       }).catch(() => {});
     }
     setNewCategoryName('');
+    setNewCategoryImage('');
     setIsAddingCategory(false);
   };
 
@@ -641,17 +661,45 @@ export default function AdminDashboardPage() {
       );
       if (!proceed) return;
     }
-    const currentList =
-      settingsForm.categories && settingsForm.categories.length > 0
-        ? settingsForm.categories
-        : defaultCategoryList;
-    const updated = currentList.filter((c) => c !== categoryToDelete);
-    setSettingsForm({ ...settingsForm, categories: updated });
+
+    const updatedDetails = categoryItemList.filter((c) => c.name !== categoryToDelete);
+    const updatedCategories = updatedDetails.map((c) => c.name);
+
+    setSettingsForm({ ...settingsForm, categories: updatedCategories, categoryDetails: updatedDetails });
     fetch('/api/admin/settings', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ categories: updated }),
+      body: JSON.stringify({ categories: updatedCategories, categoryDetails: updatedDetails }),
     }).catch(() => {});
+  };
+
+  const handleUpdateCategoryImage = async (categoryName: string, newImageUrl: string) => {
+    if (!settingsForm || !newImageUrl.trim()) return;
+    const updatedDetails = categoryItemList.map((c) =>
+      c.name === categoryName ? { ...c, image: newImageUrl.trim() } : c
+    );
+    const updatedCategories = updatedDetails.map((c) => c.name);
+    setSettingsForm({ ...settingsForm, categories: updatedCategories, categoryDetails: updatedDetails });
+    fetch('/api/admin/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ categories: updatedCategories, categoryDetails: updatedDetails }),
+    }).catch(() => {});
+  };
+
+  const handleCategoryImageUpload = (e: React.ChangeEvent<HTMLInputElement>, categoryName?: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      if (categoryName) {
+        handleUpdateCategoryImage(categoryName, dataUrl);
+      } else {
+        setNewCategoryImage(dataUrl);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleAddBankAccount = (e: React.FormEvent) => {
@@ -1703,59 +1751,137 @@ export default function AdminDashboardPage() {
                   </div>
 
                   {isAddingCategory && (
-                    <div className="p-3 bg-rose-50/50 rounded-2xl border border-rose-200 flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={newCategoryName}
-                        onChange={(e) => setNewCategoryName(e.target.value)}
-                        placeholder="Type new category name (e.g. Swimwear & Beach)..."
-                        className="flex-1 px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white focus:outline-none focus:ring-2 focus:ring-[#FF758F]"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleAddNewCategory();
-                          }
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleAddNewCategory()}
-                        className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-[#FF758F] text-white text-xs font-bold transition-colors"
-                      >
-                        Save
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setIsAddingCategory(false)}
-                        className="px-2 py-2 text-slate-400 hover:text-slate-600 text-xs font-bold"
-                      >
-                        Cancel
-                      </button>
+                    <div className="p-4 bg-rose-50/60 rounded-2xl border border-rose-200/80 space-y-3.5">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                        <div className="w-12 h-12 rounded-full overflow-hidden bg-white border-2 border-rose-200 shrink-0 relative flex items-center justify-center">
+                          {newCategoryImage ? (
+                            <Image
+                              src={newCategoryImage}
+                              alt="Category preview"
+                              fill
+                              unoptimized
+                              className="object-cover"
+                            />
+                          ) : (
+                            <ImageIcon className="w-5 h-5 text-rose-300" />
+                          )}
+                        </div>
+
+                        <div className="flex-1 w-full space-y-2">
+                          <input
+                            type="text"
+                            value={newCategoryName}
+                            onChange={(e) => setNewCategoryName(e.target.value)}
+                            placeholder="Type category name (e.g. Swimwear & Beach)..."
+                            className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white focus:outline-none focus:ring-2 focus:ring-[#FF758F]"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddNewCategory();
+                              }
+                            }}
+                          />
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            <label className="cursor-pointer px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:border-[#FF758F] text-[11px] font-bold text-slate-700 flex items-center gap-1.5 transition-colors shadow-2xs">
+                              <Camera className="w-3.5 h-3.5 text-[#FF758F]" />
+                              <span>{newCategoryImage ? 'Change Photo' : 'Upload Category Photo'}</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handleCategoryImageUpload(e)}
+                                className="hidden"
+                              />
+                            </label>
+
+                            <input
+                              type="text"
+                              value={newCategoryImage.startsWith('data:') ? '' : newCategoryImage}
+                              onChange={(e) => setNewCategoryImage(e.target.value)}
+                              placeholder="Or paste image URL (optional)..."
+                              className="flex-1 min-w-[180px] px-3 py-1.5 rounded-lg border border-slate-200 text-[11px] bg-white focus:outline-none focus:ring-1 focus:ring-[#FF758F]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-1 border-t border-rose-100">
+                        <button
+                          type="button"
+                          onClick={() => setIsAddingCategory(false)}
+                          className="px-3 py-1.5 text-slate-500 hover:text-slate-800 text-xs font-bold"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAddNewCategory()}
+                          className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-[#FF758F] text-white text-xs font-bold transition-colors shadow-xs"
+                        >
+                          Save Category
+                        </button>
+                      </div>
                     </div>
                   )}
 
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {availableCategories.map((cat) => {
-                      const count = products.filter((p) => p.category === cat).length;
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                    {categoryItemList.map((cat) => {
+                      const count = products.filter((p) => p.category === cat.name).length;
                       return (
                         <div
-                          key={cat}
-                          className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/90 text-xs font-bold text-slate-800 flex items-center gap-2 shadow-2xs"
+                          key={cat.id || cat.name}
+                          className="p-2.5 rounded-2xl bg-slate-50 border border-slate-200/90 flex items-center justify-between gap-3 shadow-2xs hover:border-slate-300 transition-colors"
                         >
-                          <span>{cat}</span>
-                          <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-extrabold flex items-center justify-center">
-                            {count}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteCategory(cat)}
-                            className="text-slate-400 hover:text-rose-600 p-0.5 ml-0.5 transition-colors rounded hover:bg-rose-50"
-                            title={`Delete Category "${cat}"`}
-                            aria-label={`Delete category ${cat}`}
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {/* Circular Category Photo Thumbnail */}
+                            <div className="relative w-9 h-9 rounded-full overflow-hidden bg-rose-50 border border-rose-200 shrink-0">
+                              <Image
+                                src={cat.image || getCategoryImage(cat.name)}
+                                alt={cat.name}
+                                fill
+                                unoptimized
+                                className="object-cover"
+                              />
+                            </div>
+
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-slate-900 truncate">
+                                {cat.name}
+                              </div>
+                              <div className="text-[10px] text-slate-500 font-medium">
+                                {count} product{count === 1 ? '' : 's'}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            {/* Upload / Change Category Photo */}
+                            <label
+                              className="cursor-pointer p-1.5 rounded-lg text-slate-400 hover:text-[#FF758F] hover:bg-rose-50 transition-colors"
+                              title={`Change photo for ${cat.name}`}
+                              aria-label={`Change photo for ${cat.name}`}
+                            >
+                              <Camera className="w-3.5 h-3.5" />
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handleCategoryImageUpload(e, cat.name)}
+                                className="hidden"
+                              />
+                            </label>
+
+                            {/* Delete Category Button (Enabled for ALL categories) */}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCategory(cat.name)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                              title={`Delete Category "${cat.name}"`}
+                              aria-label={`Delete category ${cat.name}`}
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       );
                     })}
