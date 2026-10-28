@@ -37,23 +37,66 @@ export const Navbar: React.FC = () => {
 
   useEffect(() => {
     let isMounted = true;
-    fetch('/api/settings')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (
-          isMounted &&
-          data?.settings?.categories &&
-          Array.isArray(data.settings.categories) &&
-          data.settings.categories.length > 0
-        ) {
-          setCategories(data.settings.categories);
-        }
-      })
-      .catch(() => {});
+
+    const loadNavbarCategories = () => {
+      fetch(`/api/settings?_t=${Date.now()}`, { cache: 'no-store' })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (
+            isMounted &&
+            data?.settings?.categories &&
+            Array.isArray(data.settings.categories) &&
+            data.settings.categories.length > 0
+          ) {
+            setCategories(data.settings.categories);
+          }
+        })
+        .catch(() => {});
+    };
+
+    loadNavbarCategories();
+
+    // Re-sync on tab focus or visibility change
+    const handleFocus = () => loadNavbarCategories();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') loadNavbarCategories();
+    };
+
+    // Instant cross-tab sync when Admin updates categories
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'ls_category_sync') {
+        loadNavbarCategories();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('storage', handleStorage);
+
+    let channel: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        channel = new BroadcastChannel('littlestyles_store_sync');
+        channel.onmessage = (event) => {
+          if (event.data?.type === 'CATEGORIES_UPDATED') {
+            loadNavbarCategories();
+          }
+        };
+      }
+    } catch {
+      // Fallback
+    }
+
     return () => {
       isMounted = false;
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('storage', handleStorage);
+      if (channel) {
+        channel.close();
+      }
     };
-  }, []);
+  }, [pathname]);
 
   // Isolate Seller Admin Portal from customer storefront navigation
   const isAdmin = pathname?.startsWith('/admin');

@@ -53,25 +53,69 @@ export const CategorySection: React.FC = () => {
 
   useEffect(() => {
     let isMounted = true;
-    fetch('/api/settings')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!isMounted) return;
-        if (data?.settings?.categoryDetails && Array.isArray(data.settings.categoryDetails) && data.settings.categoryDetails.length > 0) {
-          setCategories(data.settings.categoryDetails);
-        } else if (data?.settings?.categories && Array.isArray(data.settings.categories) && data.settings.categories.length > 0) {
-          setCategories(
-            data.settings.categories.map((name: string) => ({
-              name,
-              image: getCategoryImage(name),
-            }))
-          );
-        }
-      })
-      .catch(() => {});
+
+    const loadCategories = () => {
+      fetch(`/api/settings?_t=${Date.now()}`, { cache: 'no-store' })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (!isMounted) return;
+          if (data?.settings?.categoryDetails && Array.isArray(data.settings.categoryDetails) && data.settings.categoryDetails.length > 0) {
+            setCategories(data.settings.categoryDetails);
+          } else if (data?.settings?.categories && Array.isArray(data.settings.categories) && data.settings.categories.length > 0) {
+            setCategories(
+              data.settings.categories.map((name: string) => ({
+                name,
+                image: getCategoryImage(name),
+              }))
+            );
+          }
+        })
+        .catch(() => {});
+    };
+
+    // Initial load
+    loadCategories();
+
+    // Instant re-sync when tab regains focus or visibility
+    const handleFocus = () => loadCategories();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') loadCategories();
+    };
+
+    // Instant cross-tab sync when Admin updates categories
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'ls_category_sync') {
+        loadCategories();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('storage', handleStorage);
+
+    // BroadcastChannel support for zero-delay cross-tab messaging
+    let channel: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        channel = new BroadcastChannel('littlestyles_store_sync');
+        channel.onmessage = (event) => {
+          if (event.data?.type === 'CATEGORIES_UPDATED') {
+            loadCategories();
+          }
+        };
+      }
+    } catch {
+      // BroadcastChannel fallback silently handled
+    }
 
     return () => {
       isMounted = false;
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('storage', handleStorage);
+      if (channel) {
+        channel.close();
+      }
     };
   }, []);
 

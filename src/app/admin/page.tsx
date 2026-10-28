@@ -554,6 +554,24 @@ export default function AdminDashboardPage() {
   };
 
   // -------------------------------------------------------------
+  // REAL-TIME BROADCAST SYNC FOR STOREFRONT
+  // -------------------------------------------------------------
+  const broadcastCategorySync = () => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('ls_category_sync', Date.now().toString());
+        if (typeof BroadcastChannel !== 'undefined') {
+          const channel = new BroadcastChannel('littlestyles_store_sync');
+          channel.postMessage({ type: 'CATEGORIES_UPDATED', timestamp: Date.now() });
+          channel.close();
+        }
+      }
+    } catch {
+      // Fallback
+    }
+  };
+
+  // -------------------------------------------------------------
   // SETTINGS ACTIONS (Bank Accounts, Delivery Fees, Contact Info)
   // -------------------------------------------------------------
   const handleSaveSettings = async (section: 'all' | 'delivery' | 'contact' | 'banks') => {
@@ -571,6 +589,7 @@ export default function AdminDashboardPage() {
         setSettings(data.settings);
         setSettingsForm(data.settings);
         setSettingsFeedback('Settings successfully updated and synchronized across website!');
+        broadcastCategorySync();
         setTimeout(() => setSettingsFeedback(''), 4000);
       } else {
         setSettingsFeedback(data.message || 'Save failed');
@@ -672,7 +691,9 @@ export default function AdminDashboardPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ categories: updatedCategories, categoryDetails: updatedDetails }),
-      }).catch(() => {});
+      })
+        .then(() => broadcastCategorySync())
+        .catch(() => {});
     }
     setNewCategoryName('');
     setNewCategoryImage('');
@@ -697,7 +718,9 @@ export default function AdminDashboardPage() {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ categories: updatedCategories, categoryDetails: updatedDetails }),
-    }).catch(() => {});
+    })
+      .then(() => broadcastCategorySync())
+      .catch(() => {});
   };
 
   const handleUpdateCategoryImage = async (categoryName: string, newImageUrl: string) => {
@@ -711,7 +734,9 @@ export default function AdminDashboardPage() {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ categories: updatedCategories, categoryDetails: updatedDetails }),
-    }).catch(() => {});
+    })
+      .then(() => broadcastCategorySync())
+      .catch(() => {});
   };
 
   const handleCategoryImageUpload = (e: React.ChangeEvent<HTMLInputElement>, categoryName?: string) => {

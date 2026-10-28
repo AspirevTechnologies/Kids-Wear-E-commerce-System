@@ -5,6 +5,9 @@ import { ClothingCategory, AgeGroup, Gender } from '@/shared/types/common';
 import Link from 'next/link';
 import { Search, SlidersHorizontal, ArrowUpDown, X, Tag, Sparkles } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface ProductsPageProps {
   searchParams: Promise<{
     category?: string;
